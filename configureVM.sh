@@ -23,6 +23,8 @@ sudo apt install wireshark -y
 sudo apt install filezilla -y
 ## Python3 sslscan ##
 pip3 install sslscan
+## Python3 OpenSSL ##
+pip3 install pyopenssl
 
 
 ################################
