@@ -21,22 +21,25 @@ with open('domains.csv', 'r') as read_obj:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sslSocket = context.wrap_socket(s, server_hostname=domain)
             sslSocket.connect((domain, 443))
-            print('Selected version by the server: ', sslSocket.version())
+            # print('Selected version by the server: ', sslSocket.version())
+            tlsVersion = sslSocket.version()
             sslSocket.close()
             certificate: bytes = ssl.get_server_certificate((domain, 443)).encode('utf-8')
             loaded_cert = x509.load_pem_x509_certificate(certificate, default_backend())
             common_name = loaded_cert.subject.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)
             issuer = loaded_cert.issuer.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)
-            print("*** Common Name ***")
-            print(common_name[0].value)
-            print("*** Issuer ***")
-            print(issuer.pop().value)
+            # print("*** Common Name ***")
+            # print(common_name[0].value)
+            commonName = common_name[0].value
+            # print("*** Issuer ***")
+            # print(issuer.pop().value)
+            certIssuer = issuer.pop().value
             san = loaded_cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
             san_dns_names = san.value.get_values_for_type(x509.DNSName)
-            print("*** SAN ***")
+            # print("*** SAN ***")
             # print(san_dns_names)
             for record in san_dns_names:
-                print(record)
+                # print(record)
         except socket.gaierror:
             print("Host Not Found")
         except ssl.SSLCertVerificationError:
@@ -44,4 +47,13 @@ with open('domains.csv', 'r') as read_obj:
         except ssl.SSLError:
             print("Unknown TLS error")
 print("Script ran successfully...")
+
+
+# with open('large.csv','w') as f1:
+#    writer=csv.writer(f1, delimiter='\t',lineterminator='\n',)
+#    writer.writerow([''] + range(1000000))
+#    for i in range(1000000):
+#        row = [i] + [i + j*0.2 for j in range(i+1)]
+#        writer.writerow(row)
+
 
