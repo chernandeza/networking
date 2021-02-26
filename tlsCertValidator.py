@@ -85,28 +85,28 @@ with open('domains.csv', 'r') as read_obj:
                 countSuccess += 1
 
         except socket.gaierror:
-            print("Host Not Found")
+            # print("Host Not Found")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except ssl.SSLCertVerificationError:
-            print('Could not validate certificate')
+            # print('Could not validate certificate')
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except ssl.SSLError:
-            print("Unknown TLS error")
+            # print("Unknown TLS error")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except ConnectionRefusedError:
-            print("Connection Refused error")
+            # print("Connection Refused error")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
