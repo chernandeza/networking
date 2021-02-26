@@ -2,6 +2,7 @@
 import csv
 import socket
 import ssl
+import sys
 from ssl import SSLContext
 
 import cryptography
@@ -12,12 +13,13 @@ from csv import reader
 # Create results file and add Header row
 with open('results.csv', 'w') as f1:
     writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
-    writer.writerow(["Domain", "TLSVersion", "CommonName", "WildcardCN", "CertIssuer", "SAN"])
+    writer.writerow(["Domain", "TLSVersion", "ChosenCipher", "CommonName", "WildcardCN", "CertIssuer", "SAN"])
     f1.close()
 
 # Declare counters
 countSuccess = 0
 countFail = 0
+countTotal = 0
 
 # open input file in read mode
 with open('domains.csv', 'r') as read_obj:
@@ -31,6 +33,7 @@ with open('domains.csv', 'r') as read_obj:
             commonName = "NULL"
             certIssuer = "NULL"
             san_dns_names = "NULL"
+            chosenCipher = "NULL"
             # --- First, we validate TLS protocol version --- #
             # row variable is a list that represents a row in csv
             wildcardCN = False  # True if "*" was found on either CN or SAN
@@ -38,15 +41,18 @@ with open('domains.csv', 'r') as read_obj:
 
             # Removes everything after first "/" is found
             domain = url.split("/", 1)[0]
+            countTotal += 1
 
-            print("Evaluating -> " + domain)
+            print("[" + str(countTotal) + "]" + " Evaluating -> " + domain)
             context: SSLContext
             context = ssl.create_default_context()
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sslSocket = context.wrap_socket(s, server_hostname=domain)
+            sslSocket.settimeout(10)
             sslSocket.connect((domain, 443))  # Establishes TLS connection to host
             # print('Selected version by the server: ', sslSocket.version())
             tlsVersion = sslSocket.version()  # Extracts TLS version used to establish connection.
+            chosenCipher = sslSocket.cipher()
             sslSocket.close()
 
             # --- Now, validate certificate properties --- #
@@ -80,7 +86,7 @@ with open('domains.csv', 'r') as read_obj:
                 print("... Domain is using wildcard SAN")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
-                writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countSuccess += 1
 
@@ -88,35 +94,52 @@ with open('domains.csv', 'r') as read_obj:
             # print("Host Not Found")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
-                writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except ssl.SSLCertVerificationError:
             # print('Could not validate certificate')
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
-                writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except ssl.SSLError:
             # print("Unknown TLS error")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
-                writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except ConnectionRefusedError:
             # print("Connection Refused error")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
-                writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
                 countFail += 1
         except IndexError:
             print("Found empty line on file... Probably EOF.")
         except cryptography.x509.extensions.ExtensionNotFound:
-            print("Certificate has no extensions")
+            print("... Domain certificate has no extensions. Could not check SAN.")
+            with open('results.csv', 'a+') as f1:
+                writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
+                f1.close()
+                countFail += 1
+        except socket.timeout:
+            print("... Connection to domain timed out. Probably TLS is not enabled. ")
+            with open('results.csv', 'a+') as f1:
+                writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
+                writer.writerow([domain, tlsVersion, chosenCipher, commonName, wildcardCN, certIssuer, san_dns_names])
+                f1.close()
+                countFail += 1
+        except Exception as E:
+            print("Exception occurred. Exiting program.")
+            print(E.args)
+            sys.exit()
 
-print("Validation complete...")
+print("Validation completed for {0} domains".format(countTotal))
 print("Found information successfully for {0} domains".format(countSuccess))
 print("Information missing or errors found on {0} domains".format(countFail))
+sys.exit()
