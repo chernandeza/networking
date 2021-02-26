@@ -14,10 +14,8 @@ with open('results.csv', 'w') as f1:
     f1.close()
 
 # Declare counters
-countsucess = 0
-countCertErr = 0
-countgaiErr = 0
-countSslErr = 0
+countSuccess = 0
+countFail = 0
 
 # open input file in read mode
 with open('domains.csv', 'r') as read_obj:
@@ -82,7 +80,7 @@ with open('domains.csv', 'r') as read_obj:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
-                countsucess += 1
+                countSuccess += 1
 
         except socket.gaierror:
             # print("Host Not Found")
@@ -90,23 +88,32 @@ with open('domains.csv', 'r') as read_obj:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
-                countgaiErr += 1
+                countFail += 1
         except ssl.SSLCertVerificationError:
             # print('Could not validate certificate')
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
-                countCertErr += 1
+                countFail += 1
         except ssl.SSLError:
             # print("Unknown TLS error")
             with open('results.csv', 'a+') as f1:
                 writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
                 writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
                 f1.close()
-                countSslErr += 1
-
+                countFail += 1
+        except ConnectionRefusedError:
+            # print("Connection Refused error")
+            with open('results.csv', 'a+') as f1:
+                writer = csv.writer(f1, delimiter='\t', lineterminator='\n', quoting=csv.QUOTE_ALL)
+                writer.writerow([domain, tlsVersion, commonName, wildcardCN, certIssuer, san_dns_names])
+                f1.close()
+                countFail += 1
+        except IndexError:
+            # print("Found empty line on file")
+    	    countFail += 1
 
 print("Validation complete...")
-print("Found information sucessfully for {0} domains".format(countsucess))
-print("Information missing or errors found on {0} domains".format(countgaiErr+countSslErr+countCertErr))
+print("Found information sucessfully for {0} domains".format(countSuccess))
+print("Information missing or errors found on {0} domains".format(countFail))
